@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import SafariServices
+import OSLog
 
 struct WebContainerView: UIViewRepresentable {
     @ObservedObject var store: WebViewStore
@@ -27,6 +28,7 @@ struct WebContainerView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let store: WebViewStore
+        private let log = Logger(subsystem: "com.mironable.feedless", category: "navigation")
 
         init(store: WebViewStore) {
             self.store = store
@@ -36,6 +38,7 @@ struct WebContainerView: UIViewRepresentable {
             guard let url = action.request.url else { return (.allow, preferences) }
             let isMainFrame = action.targetFrame?.isMainFrame ?? true
             guard isMainFrame else { return (.allow, preferences) }
+            log.debug("main frame -> \(url.absoluteString, privacy: .public)")
 
             if !store.policy.isInternal(url) {
                 if url.scheme == "http" || url.scheme == "https" {
