@@ -1,0 +1,54 @@
+[
+  {
+    "trigger": { "url-filter": "^https?://([a-z0-9-]+\\.)?graph\\.facebook\\.com/", "if-top-url": ["instagram\\.com"] },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": { "url-filter": "^https?://connect\\.facebook\\.net/" },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": { "url-filter": "^https?://pixel\\.facebook\\.com/" },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": { "url-filter": "^https?://an\\.facebook\\.com/" },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": { "url-filter": "^https?://([a-z0-9-]+\\.)?facebook\\.com/tr[/?]" },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": { "url-filter": "^https?://([a-z0-9-]+\\.)?facebook\\.com/privacy_sandbox/" },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([a-z0-9-]+\\.)?instagram\\.com/ajax/bz",
+      "resource-type": ["raw", "fetch", "ping", "other"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([a-z0-9-]+\\.)?instagram\\.com/logging/",
+      "resource-type": ["raw", "fetch", "ping", "other"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([a-z0-9-]+\\.)?instagram\\.com/api/v1/ads/",
+      "resource-type": ["raw", "fetch", "ping", "other"]
+    },
+    "action": { "type": "block" }
+  },
+  {
+    "trigger": {
+      "url-filter": "^https?://([a-z0-9-]+\\.)?instagram\\.com/ads/",
+      "resource-type": ["raw", "fetch", "ping", "image", "script", "other"]
+    },
+    "action": { "type": "block" }
+  }
+]

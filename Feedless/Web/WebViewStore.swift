@@ -13,16 +13,18 @@ final class WebViewStore: ObservableObject {
     let settings: Settings
     let webView: WKWebView
 
-    @Published var externalURL: URL?
     @Published var canGoBack = false
+    @Published private(set) var contentRuleList: WKContentRuleList?
 
     private var cancellables = Set<AnyCancellable>()
+    private var appliedFeedID: String
 
     init(loader: RuleLoader, rules: PlatformRules, settings: Settings) {
         self.loader = loader
         self.rules = rules
         self.settings = settings
         policy = NavigationPolicy(rules: rules)
+        appliedFeedID = settings.feedID
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -42,6 +44,30 @@ final class WebViewStore: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.applySettings() }
             .store(in: &cancellables)
+
+        Task { await compileContentRules() }
+    }
+
+    private func compileContentRules() async {
+        guard let file = rules.contentRules else { return }
+        do {
+            let json = try loader.text(file)
+            contentRuleList = try await ContentRuleCompiler.load(identifierPrefix: rules.id, json: json)
+            updateContentRules()
+        } catch {
+            assertionFailure("Content rules failed to compile: \(error)")
+        }
+    }
+
+    /// Ads category on: block requests from the rules file. Off: let them through.
+    private func updateContentRules() {
+        guard let list = contentRuleList else { return }
+        let controller = webView.configuration.userContentController
+        if settings.isEnabled("ads") {
+            controller.add(list)
+        } else {
+            controller.remove(list)
+        }
     }
 
     var startURL: URL { rules.startURL(feedID: settings.feedID) }
@@ -57,7 +83,12 @@ final class WebViewStore: ObservableObject {
     /// Re-registers scripts for future navigations and pushes the config into the current page.
     func applySettings() {
         installUserScripts()
+        updateContentRules()
         webView.evaluateJavaScript(settings.injectedConfig.updateSource())
+        if settings.feedID != appliedFeedID {
+            appliedFeedID = settings.feedID
+            if webView.url?.path() == "/" { loadHome() }
+        }
     }
 
     func resetSession() async {
