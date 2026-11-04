@@ -9,8 +9,12 @@
  * Selectors use hrefs, roles and aria-labels. Generated class names are avoided. */
 
 /* ---- Reels ---------------------------------------------------------------- */
+/* The bottom nav cell wraps its link as div > span > div > a. Hiding the cell from the first
+ * paint keeps the remaining tabs evenly spaced; instagram.js flags the cell too, for any
+ * other shape. */
 html[data-fl-reels] a[href="/reels/"],
 html[data-fl-reels] a[href^="/reels/?"],
+html[data-fl-reels] *:has(> span > div > a[href="/reels/"]),
 html[data-fl-reels] [data-fl-hidden~="reels"] {
   display: none !important;
 }
@@ -20,6 +24,7 @@ html[data-fl-reels] [data-fl-hidden~="reels"] {
  * spacing. If the explore page is reached anyway, its grid and the infinite-scroll spinner go
  * too, since a visible spinner would fetch page after page. */
 html[data-fl-explore] a[href="/explore/"],
+html[data-fl-explore] *:has(> span > div > a[href="/explore/"]),
 html[data-fl-explore] [data-fl-hidden~="explore"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/p/"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/reel/"],

@@ -52,6 +52,8 @@ final class RuleInjectionTests: XCTestCase {
     func testReelsAndSearchTabsHidden() async throws {
         await assertDisplay("#nav-reels", "none")
         await assertDisplay("#nav-explore", "none")
+        await assertDisplay("#cell-reels", "none")
+        await assertDisplay("#cell-explore", "none")
         await assertDisplay("#nav-home", "inline")
         await assertDisplay("#nav-direct", "inline")
     }
@@ -80,8 +82,9 @@ final class RuleInjectionTests: XCTestCase {
         let config = InjectedConfig(platform: "instagram", feed: "following", categories: ["reels": false, "explore": true, "suggested": true, "ads": true, "stories": true])
         _ = try await webView.evaluateJavaScript(config.updateSource() + "; true")
         await assertDisplay("#nav-reels", "inline")
+        await assertDisplay("#cell-reels", "block")
         await assertDisplay("#reels-rail", "block")
-        await assertDisplay("#nav-explore", "none")
+        await assertDisplay("#cell-explore", "none")
         await assertDisplay("#sponsored", "none")
     }
 
