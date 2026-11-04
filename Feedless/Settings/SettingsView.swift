@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var confirmReset = false
     @State private var exportedFile: ExportedFile?
+    @State private var pollSummary = InboxPoller.shared.lastSummary
+    @State private var polling = false
 
     private struct ExportedFile: Identifiable {
         let url: URL
@@ -33,6 +35,38 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section {
+                    Toggle("New message alerts", isOn: $settings.dmNotifications)
+                        .onChange(of: settings.dmNotifications) { _, enabled in
+                            Task {
+                                if enabled {
+                                    if await InboxPoller.shared.requestAuthorization() {
+                                        await InboxPoller.shared.poll(notify: false)
+                                        BackgroundRefresh.schedule()
+                                    } else {
+                                        settings.dmNotifications = false
+                                    }
+                                } else {
+                                    BackgroundRefresh.cancel()
+                                }
+                                pollSummary = InboxPoller.shared.lastSummary
+                            }
+                        }
+                    Button(polling ? "Polling…" : "Poll now") {
+                        polling = true
+                        Task {
+                            await InboxPoller.shared.poll(notify: true)
+                            pollSummary = InboxPoller.shared.lastSummary
+                            polling = false
+                        }
+                    }
+                    .disabled(polling || !settings.dmNotifications)
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("Instagram cannot push to Feedless. The app checks your inbox in the background a few times an hour, when iOS allows it, and alerts you to new direct messages. Last check: \(pollSummary)")
                 }
 
                 Section("Debug") {

@@ -19,6 +19,10 @@ final class Settings: ObservableObject {
         didSet { defaults.set(showTouches, forKey: Keys.showTouches) }
     }
 
+    @Published var dmNotifications: Bool {
+        didSet { defaults.set(dmNotifications, forKey: Keys.dmNotifications) }
+    }
+
     init(rules: PlatformRules, defaults: UserDefaults = .standard) {
         self.rules = rules
         self.defaults = defaults
@@ -27,6 +31,7 @@ final class Settings: ObservableObject {
         let stored = defaults.dictionary(forKey: Keys.categories) as? [String: Bool] ?? [:]
         enabledCategories = Dictionary(uniqueKeysWithValues: rules.categories.map { ($0.id, stored[$0.id] ?? true) })
         showTouches = defaults.bool(forKey: Keys.showTouches)
+        dmNotifications = defaults.bool(forKey: Keys.dmNotifications)
     }
 
     func isEnabled(_ categoryID: String) -> Bool {
@@ -45,5 +50,6 @@ final class Settings: ObservableObject {
         static let feed = "feed"
         static let categories = "categories"
         static let showTouches = "showTouches"
+        static let dmNotifications = "dmNotifications"
     }
 }

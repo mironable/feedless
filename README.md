@@ -30,6 +30,10 @@ xcodebuild -project Feedless.xcodeproj -scheme Feedless -destination 'platform=i
 
 Instagram's web client does not serve view-once photos and videos or some voice messages in DMs. Feedless replaces those placeholders with an "Open in Instagram app" button that opens the thread in the official app via `instagram://direct/t/<thread_id>`, so keep the Instagram app installed. If it is missing, the button falls back to the web URL, which shows the same placeholder.
 
+## Message alerts
+
+Instagram only pushes notifications to its own app and to browsers, never to a web view inside another app, so Feedless cannot receive them. Instead, with "New message alerts" on in Settings, Feedless asks iOS for background refresh and, whenever iOS grants it (typically a few times an hour, never on a fixed schedule), fetches your inbox with the web view's session and posts a local notification for each thread with a new message. Tapping the alert opens that thread. Expect 15 to 60 minutes of delay, and expect it to break when Instagram changes its inbox API. With this on you can silence the official app entirely.
+
 ## How the rules work
 
 Everything Instagram-specific lives in `Feedless/Resources/Rules/instagram/`:
