@@ -13,7 +13,6 @@ final class WebViewStore: ObservableObject {
     let settings: Settings
     let webView: WKWebView
 
-    @Published var canGoBack = false
     @Published private(set) var contentRuleList: WKContentRuleList?
 
     private var cancellables = Set<AnyCancellable>()
@@ -38,7 +37,6 @@ final class WebViewStore: ObservableObject {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
 
         installUserScripts()
-        webView.publisher(for: \.canGoBack).assign(to: &$canGoBack)
 
         settings.objectWillChange
             .receive(on: RunLoop.main)
@@ -74,11 +72,6 @@ final class WebViewStore: ObservableObject {
 
     func loadHome() {
         webView.load(URLRequest(url: startURL))
-    }
-
-    /// The search page keeps its search field; instagram.css drops the explore grid under it.
-    func loadSearch() {
-        webView.load(URLRequest(url: URL(string: "/explore/search/", relativeTo: rules.homeURL)!.absoluteURL))
     }
 
     func loadStartIfBlank() {

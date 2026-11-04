@@ -1,6 +1,6 @@
 # Feedless
 
-A distraction-free wrapper around Instagram's mobile web for iPhone. It loads instagram.com in a WKWebView with a Safari user agent, always opens the Following feed (or Favorites, your choice), and hides Reels, Explore, suggested posts and accounts, sponsored posts, and the stories tray. Each category can be switched off in Settings. No third-party code, no analytics, no account of its own.
+A distraction-free wrapper around Instagram's mobile web for iPhone. It loads instagram.com in a WKWebView with a Safari user agent, always opens the Following feed (or Favorites, your choice), and hides Reels, Explore, suggested posts and accounts, sponsored posts, and the stories tray. Each category can be switched off in Settings, which opens when you shake the phone; the app adds no chrome of its own around Instagram. No third-party code, no analytics, no account of its own.
 
 ## Install
 

@@ -47,10 +47,10 @@ struct SettingsView: View {
                 Section {
                     Button("Reset session", role: .destructive) { confirmReset = true }
                 } footer: {
-                    Text("Signs you out and clears cookies, cache and site data for \(store.rules.name).")
+                    Text("Signs you out and clears cookies, cache and site data for \(store.rules.name). Shake the phone to open this screen.")
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle("Feedless")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

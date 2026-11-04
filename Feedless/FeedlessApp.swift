@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct FeedlessApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var settings: Settings
     @StateObject private var store: WebViewStore
 
