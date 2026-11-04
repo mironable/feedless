@@ -76,6 +76,11 @@ final class WebViewStore: ObservableObject {
         webView.load(URLRequest(url: startURL))
     }
 
+    /// The search page keeps its search field; instagram.css drops the explore grid under it.
+    func loadSearch() {
+        webView.load(URLRequest(url: URL(string: "/explore/search/", relativeTo: rules.homeURL)!.absoluteURL))
+    }
+
     func loadStartIfBlank() {
         if webView.url == nil { loadHome() }
     }
