@@ -16,15 +16,19 @@ html[data-fl-reels] [data-fl-hidden~="reels"] {
 }
 
 /* ---- Explore -------------------------------------------------------------- */
-html[data-fl-explore] a[href="/explore/"],
-html[data-fl-explore] a[href^="/explore/?"],
-html[data-fl-explore] [data-fl-hidden~="explore"] {
-  display: none !important;
-}
-/* The search page renders the explore grid under the search field. Keep the field, drop the grid. */
+/* The Search tab stays, since it is the only way to find accounts. The explore grid that
+ * Instagram renders under the search field goes. */
+html[data-fl-explore] [data-fl-hidden~="explore"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/p/"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/reel/"] {
   display: none !important;
+}
+/* Tab order: Home, Search, then the rest. Only takes effect where the nav is a flex row. */
+nav a[href="/"], nav a[href^="/?variant="], nav *:has(> a[href="/"]), nav *:has(> a[href^="/?variant="]) {
+  order: -2;
+}
+nav a[href="/explore/"], nav *:has(> a[href="/explore/"]) {
+  order: -1;
 }
 
 /* ---- Suggested accounts and posts ----------------------------------------- */

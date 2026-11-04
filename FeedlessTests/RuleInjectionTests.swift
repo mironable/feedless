@@ -49,11 +49,17 @@ final class RuleInjectionTests: XCTestCase {
         }
     }
 
-    func testReelsAndExploreTabsAreHidden() async throws {
+    func testReelsTabHiddenSearchTabKept() async throws {
         await assertDisplay("#nav-reels", "none")
-        await assertDisplay("#nav-explore", "none")
+        await assertDisplay("#nav-explore", "inline")
         await assertDisplay("#nav-home", "inline")
         await assertDisplay("#nav-direct", "inline")
+    }
+
+    func testExploreGridHiddenOnlyOnExplorePath() async throws {
+        await assertDisplay("#post-1-link", "inline")
+        _ = try await webView.evaluateJavaScript("document.documentElement.setAttribute('data-fl-path', '/explore/'); true")
+        await assertDisplay("#post-1-link", "none")
     }
 
     func testFeedSelectorIsHidden() async throws {
@@ -75,7 +81,7 @@ final class RuleInjectionTests: XCTestCase {
         _ = try await webView.evaluateJavaScript(config.updateSource() + "; true")
         await assertDisplay("#nav-reels", "inline")
         await assertDisplay("#reels-rail", "block")
-        await assertDisplay("#nav-explore", "none")
+        await assertDisplay("#sponsored", "none")
     }
 
     func testHomeLinksPointAtChosenFeed() async throws {

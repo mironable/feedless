@@ -33,7 +33,7 @@
     setPathAttribute();
     if (window !== window.top) { return; }
     var path = location.pathname;
-    if (path.indexOf('/reels/') === 0 || path === '/explore/' || path === '/explore') {
+    if (path.indexOf('/reels/') === 0) {
       location.replace(homePath());
       return;
     }
