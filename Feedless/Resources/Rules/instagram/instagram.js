@@ -49,6 +49,14 @@
     net.push(entry);
   }
 
+  window.addEventListener('error', function (event) {
+    record({ t: Date.now(), kind: 'error', message: String(event.message), source: String(event.filename) + ':' + event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    record({ t: Date.now(), kind: 'rejection', message: String(reason && reason.message ? reason.message : reason), stack: String(reason && reason.stack ? reason.stack : '').slice(0, 600) });
+  });
+
   if (window.fetch) {
     var originalFetch = window.fetch;
     window.fetch = function (input, init) {
@@ -242,11 +250,24 @@
 
   // On the home path a feed has rendered when articles exist. The variant feeds title their
   // header "Following" or "Favorites"; the default feed shows the wordmark instead.
+  var recoveryStarted = 0;
+
   function enforceFeedHeader() {
     if (location.pathname !== '/' || window !== window.top) { return; }
     if (!document.querySelector('main article')) { return; }
     var wanted = FEED_VARIANTS.indexOf(config.feed) >= 0 ? config.feed : 'following';
-    if (!headerShowsFeed(wanted)) {
+    if (headerShowsFeed(wanted)) {
+      recoveryStarted = 0;
+      return;
+    }
+    var link = document.querySelector('a[href="' + homePath() + '"]');
+    if (link && !recoveryStarted) {
+      recoveryStarted = Date.now();
+      link.click();
+      setTimeout(schedule, 1500);
+      return;
+    }
+    if (!recoveryStarted || Date.now() - recoveryStarted > 1500) {
       location.replace(homePath());
       return;
     }
@@ -289,11 +310,16 @@
     svg.setAttribute('aria-label', 'Feedless settings');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.innerHTML = '<title>Feedless settings</title>' + GEAR_SVG;
-    link.addEventListener('click', function (event) {
+    var lastOpen = 0;
+    function open(event) {
       event.preventDefault();
       event.stopPropagation();
+      if (Date.now() - lastOpen < 600) { return; }
+      lastOpen = Date.now();
       postMessage({ type: 'openSettings' });
-    }, true);
+    }
+    link.addEventListener('touchend', open, true);
+    link.addEventListener('click', open, true);
     cell.parentElement.insertBefore(clone, cell);
   }
 

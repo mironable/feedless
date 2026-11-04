@@ -15,6 +15,12 @@ struct WebContainerView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.configuration.userContentController.add(context.coordinator, name: store.rules.messageHandler)
+        // Instagram is a single-page app, so WebKit's own back gesture animates stale snapshots.
+        // A plain edge swipe that asks the page to go back behaves like the native app.
+        let edgeSwipe = UIScreenEdgePanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.edgeSwipe(_:)))
+        edgeSwipe.edges = .left
+        edgeSwipe.delegate = context.coordinator
+        webView.addGestureRecognizer(edgeSwipe)
         store.loadStartIfBlank()
         return webView
     }
@@ -26,7 +32,7 @@ struct WebContainerView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIGestureRecognizerDelegate {
         let store: WebViewStore
         private let log = Logger(subsystem: "com.mironable.feedless", category: "navigation")
 
@@ -77,6 +83,16 @@ struct WebContainerView: UIViewRepresentable {
                 break
             }
         }
+
+        @objc func edgeSwipe(_ recognizer: UIScreenEdgePanGestureRecognizer) {
+            guard recognizer.state == .ended, let view = recognizer.view else { return }
+            let translation = recognizer.translation(in: view).x
+            let velocity = recognizer.velocity(in: view).x
+            guard translation > 80 || velocity > 600 else { return }
+            store.webView.evaluateJavaScript("history.back()")
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 
         private func openInNativeApp(pageURL: URL?) {
             guard let pageURL, let threadID = NavigationPolicy.threadID(from: pageURL) else { return }
