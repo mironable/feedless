@@ -3,9 +3,9 @@ import WebKit
 import UserNotifications
 import OSLog
 
-/// Replays Instagram's own unread-badge GraphQL request with the web view's cookies and raises
-/// a local notification when the count grows. Instagram cannot push to a WKWebView and its
-/// inbox now streams over Messenger's MQTT channel, so the badge is what is reachable.
+/// Replays Instagram's own mailbox GraphQL request with the web view's cookies and raises a
+/// local notification per thread with activity newer than the viewer's read watermark.
+/// Instagram cannot push to a WKWebView, and this query is what its web client polls.
 @MainActor
 final class InboxPoller {
     static let shared = InboxPoller()
@@ -40,6 +40,8 @@ final class InboxPoller {
     var claimProvider: (() async -> String?)?
     /// Supplied by the web view: the latest badge request the page made.
     var captureProvider: (() async -> CapturedRequest?)?
+    /// Supplied by the web view: thread id to title, learned as threads are opened.
+    var namesProvider: (() async -> [String: String])?
 
     var isEnabled: Bool { defaults.bool(forKey: Keys.enabled) }
 
@@ -53,33 +55,50 @@ final class InboxPoller {
         set { defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: Keys.captured) }
     }
 
-    private var lastBadge: Int {
-        get { defaults.integer(forKey: Keys.lastBadge) }
-        set { defaults.set(newValue, forKey: Keys.lastBadge) }
+    /// Last activity seen per thread id; alerts fire only for activity newer than this.
+    private var seenActivity: [String: Int64] {
+        get { (defaults.dictionary(forKey: Keys.seen) as? [String: NSNumber])?.mapValues { $0.int64Value } ?? [:] }
+        set { defaults.set(newValue.mapValues { NSNumber(value: $0) }, forKey: Keys.seen) }
     }
 
-    /// Pulls the page's latest badge request into storage. Call while the web view is alive.
+    private var threadNames: [String: String] {
+        get { defaults.dictionary(forKey: Keys.names) as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: Keys.names) }
+    }
+
+    /// Pulls the page's latest badge request and thread names into storage. Call while the web view is alive.
     func refreshCapture() async {
         if let fresh = await captureProvider?(), fresh.t > (captured?.t ?? 0) {
             captured = fresh
+        }
+        if let names = await namesProvider?(), !names.isEmpty {
+            threadNames = threadNames.merging(names) { _, new in new }
         }
     }
 
     /// Fetch once. With `notify` false the count is recorded without alerts, used when the app
     /// goes to the background so messages already read in the app are not announced later.
     @discardableResult
-    func poll(notify: Bool) async -> Result<Int, Error> {
+    func poll(notify: Bool) async -> Result<MailboxSnapshot, Error> {
         await refreshCapture()
         do {
-            let count = try await fetchBadge()
-            if notify, count > lastBadge, count > 0 {
-                await post(count: count)
+            let snapshot = try await fetchMailbox()
+            var seen = seenActivity
+            let firstRun = seen.isEmpty
+            var alerted = 0
+            for thread in snapshot.threads {
+                let previous = seen[thread.id] ?? 0
+                if notify, !firstRun, !thread.muted, thread.isUnread, thread.lastActivity > previous {
+                    await post(thread: thread, viewerID: snapshot.viewerID)
+                    alerted += 1
+                }
+                seen[thread.id] = max(previous, thread.lastActivity)
             }
-            lastBadge = count
-            try? await UNUserNotificationCenter.current().setBadgeCount(count)
-            lastSummary = "\(Self.timeFormatter.string(from: .now)): \(count) unread" + (notify ? "" : " (silent)")
-            log.info("poll ok unread=\(count)")
-            return .success(count)
+            seenActivity = seen
+            try? await UNUserNotificationCenter.current().setBadgeCount(snapshot.unreadCount)
+            lastSummary = "\(Self.timeFormatter.string(from: .now)): \(snapshot.unreadCount) unread, \(alerted) alerted" + (notify ? "" : " (silent)")
+            log.info("poll ok unread=\(snapshot.unreadCount) alerted=\(alerted)")
+            return .success(snapshot)
         } catch {
             lastSummary = "\(Self.timeFormatter.string(from: .now)): \(error.localizedDescription)"
             log.error("poll failed: \(error.localizedDescription, privacy: .public)")
@@ -91,7 +110,7 @@ final class InboxPoller {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    private func fetchBadge() async throws -> Int {
+    private func fetchMailbox() async throws -> MailboxSnapshot {
         guard let captured else { throw PollError.noCapturedRequest }
         let cookies = await WKWebsiteDataStore.default().httpCookieStore.allCookies()
             .filter { $0.domain.hasSuffix("instagram.com") }
@@ -122,20 +141,22 @@ final class InboxPoller {
             throw PollError.http(status, String(decoding: data.prefix(200), as: UTF8.self).replacingOccurrences(of: "\n", with: " "))
         }
         do {
-            return try BadgeParser.unreadCount(in: data)
+            return try MailboxParser.parse(data)
         } catch {
-            throw PollError.http(status, "no count in " + String(decoding: data.prefix(200), as: UTF8.self))
+            throw PollError.http(status, "unexpected shape: " + String(decoding: data.prefix(200), as: UTF8.self))
         }
     }
 
-    private func post(count: Int) async {
+    private func post(thread: MailboxThread, viewerID: String) async {
+        let url = thread.webURL(viewerID: viewerID)
+        let name = threadNames[thread.id] ?? threadNames[url.lastPathComponent]
         let content = UNMutableNotificationContent()
-        content.title = "Instagram"
-        content.body = count == 1 ? "You have 1 unread message" : "You have \(count) unread messages"
+        content.title = name ?? "Instagram"
+        content.body = name.map { "New message from \($0)" } ?? "New message"
         content.sound = .default
-        content.threadIdentifier = "inbox"
-        content.userInfo = ["url": "https://www.instagram.com/direct/inbox/"]
-        let request = UNNotificationRequest(identifier: "inbox-\(Int(Date.now.timeIntervalSince1970))", content: content, trigger: nil)
+        content.threadIdentifier = thread.id
+        content.userInfo = ["url": url.absoluteString]
+        let request = UNNotificationRequest(identifier: "dm-\(thread.id)-\(thread.lastActivity)", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
     }
 
@@ -149,6 +170,7 @@ final class InboxPoller {
         static let enabled = "dmNotifications"
         static let summary = "inboxLastSummary"
         static let captured = "inboxBadgeRequest"
-        static let lastBadge = "inboxLastBadge"
+        static let seen = "inboxSeenActivity"
+        static let names = "inboxThreadNames"
     }
 }

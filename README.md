@@ -32,7 +32,7 @@ Instagram's web client does not serve view-once photos and videos or some voice 
 
 ## Message alerts
 
-Instagram only pushes notifications to its own app and to browsers, never to a web view inside another app, so Feedless cannot receive them. Instead, with "New message alerts" on in Settings, Feedless asks iOS for background refresh and, whenever iOS grants it (typically a few times an hour, never on a fixed schedule), replays the unread-badge request Instagram's own web client makes, using the web view's session, and posts a local notification when the unread count grows. Tapping the alert opens the inbox. Expect 15 to 60 minutes of delay, and expect it to break when Instagram changes that request. With this on you can silence the official app entirely.
+Instagram only pushes notifications to its own app and to browsers, never to a web view inside another app, so Feedless cannot receive them. Instead, with "New message alerts" on in Settings, Feedless asks iOS for background refresh and, whenever iOS grants it (typically a few times an hour, never on a fixed schedule), replays the mailbox request Instagram's own web client makes, using the web view's session, and posts a local notification for each thread with activity newer than what you have read. Tapping the alert opens that thread. Thread names are learned as you open threads in Feedless; before that an alert just says "New message". Expect 15 to 60 minutes of delay, and expect it to break when Instagram changes that request. With this on you can silence the official app entirely.
 
 ## How the rules work
 

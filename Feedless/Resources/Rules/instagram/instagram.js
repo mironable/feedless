@@ -391,6 +391,26 @@
     }
   }
 
+  // ---- Thread names -----------------------------------------------------
+  // The mailbox query carries ids only. Remember the title of each thread as it is opened so
+  // alerts can name the sender; the id in the URL is what the native side matches on.
+  var threadNames = window.__feedlessThreadNames = window.__feedlessThreadNames || {};
+
+  function rememberThreadName() {
+    var match = location.pathname.match(/^\/direct\/t\/([^\/]+)/);
+    if (!match) { return; }
+    var header = document.querySelector('header') || document.querySelector('[role="banner"]');
+    if (!header) { return; }
+    var leaves = header.querySelectorAll('span, div, h1, h2');
+    for (var i = 0; i < leaves.length; i++) {
+      var text = leafText(leaves[i]);
+      if (!text || text.length > 60 || text === 'Back' || leaves[i].closest('[aria-hidden="true"]')) { continue; }
+      if (leaves[i].closest('svg')) { continue; }
+      threadNames[match[1]] = text;
+      return;
+    }
+  }
+
   // ---- Hand-off for media the web client cannot show ----------------------
   var HANDOFF_RE = /can only be (replayed|viewed|seen) once|use the (mobile |instagram )?app to (view|listen|see)|not available on (the )?web|open the instagram app/i;
 
@@ -433,6 +453,7 @@
       if (enabled('ads') || enabled('suggested') || enabled('reels')) { scanFeedLabels(); }
       if (enabled('reels')) { scanReelsRail(); }
       if (enabled('stories')) { scanStoriesTray(); }
+      rememberThreadName();
       scanHandoffPlaceholders();
     } catch (error) {
       // A selector that no longer matches must never break the page.

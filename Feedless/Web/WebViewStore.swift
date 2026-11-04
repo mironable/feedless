@@ -46,6 +46,7 @@ final class WebViewStore: ObservableObject {
         Task { await compileContentRules() }
         InboxPoller.shared.claimProvider = { [weak self] in await self?.wwwClaim() }
         InboxPoller.shared.captureProvider = { [weak self] in await self?.badgeRequest() }
+        InboxPoller.shared.namesProvider = { [weak self] in await self?.threadNames() ?? [:] }
     }
 
     private func compileContentRules() async {
@@ -119,6 +120,11 @@ final class WebViewStore: ObservableObject {
     func badgeRequest() async -> InboxPoller.CapturedRequest? {
         guard let json = try? await webView.evaluateJavaScript("JSON.stringify(window.__feedlessBadgeRequest || null)") as? String else { return nil }
         return try? JSONDecoder().decode(InboxPoller.CapturedRequest.self, from: Data(json.utf8))
+    }
+
+    /// Thread id to title pairs instagram.js collected from opened threads.
+    func threadNames() async -> [String: String] {
+        (try? await webView.evaluateJavaScript("window.__feedlessThreadNames || {}") as? [String: String]) ?? [:]
     }
 
     func resetSession() async {
