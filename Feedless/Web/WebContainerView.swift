@@ -84,12 +84,58 @@ struct WebContainerView: UIViewRepresentable {
             }
         }
 
+        private var swipeSnapshot: UIView?
+        private var swipeDim: UIView?
+        private var swipeWentBack = false
+
+        /// Drags a snapshot of the current page aside. Once past the threshold the page itself goes
+        /// back, so the real previous page is what gets revealed; letting go early goes forward again.
         @objc func edgeSwipe(_ recognizer: UIScreenEdgePanGestureRecognizer) {
-            guard recognizer.state == .ended, let view = recognizer.view else { return }
-            let translation = recognizer.translation(in: view).x
-            let velocity = recognizer.velocity(in: view).x
-            guard translation > 80 || velocity > 600 else { return }
-            store.webView.evaluateJavaScript("history.back()")
+            guard let view = recognizer.view, let container = view.superview else { return }
+            let width = view.bounds.width
+            let translation = max(0, recognizer.translation(in: view).x)
+            switch recognizer.state {
+            case .began:
+                guard let snapshot = view.snapshotView(afterScreenUpdates: false) else { return }
+                let dim = UIView(frame: view.frame)
+                dim.backgroundColor = UIColor.black.withAlphaComponent(0.25)
+                snapshot.frame = view.frame
+                snapshot.layer.shadowColor = UIColor.black.cgColor
+                snapshot.layer.shadowOpacity = 0.3
+                snapshot.layer.shadowRadius = 8
+                container.addSubview(dim)
+                container.addSubview(snapshot)
+                swipeDim = dim
+                swipeSnapshot = snapshot
+                swipeWentBack = false
+            case .changed:
+                guard let snapshot = swipeSnapshot else { return }
+                snapshot.frame.origin.x = view.frame.origin.x + translation
+                swipeDim?.alpha = 1 - translation / width
+                if !swipeWentBack, translation > 60 {
+                    swipeWentBack = true
+                    store.webView.evaluateJavaScript("history.back()")
+                }
+            case .ended, .cancelled, .failed:
+                guard let snapshot = swipeSnapshot else { return }
+                let velocity = recognizer.velocity(in: view).x
+                let complete = swipeWentBack && (translation > width * 0.35 || velocity > 300)
+                if swipeWentBack, !complete {
+                    store.webView.evaluateJavaScript("history.forward()")
+                }
+                let dim = swipeDim
+                swipeSnapshot = nil
+                swipeDim = nil
+                UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut]) {
+                    snapshot.frame.origin.x = complete ? view.frame.origin.x + width : view.frame.origin.x
+                    dim?.alpha = complete ? 0 : 1
+                } completion: { _ in
+                    snapshot.removeFromSuperview()
+                    dim?.removeFromSuperview()
+                }
+            default:
+                break
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }

@@ -17,7 +17,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Hide") {
+                Section {
                     ForEach(store.rules.categories) { category in
                         Toggle(isOn: binding(for: category.id)) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -26,6 +26,10 @@ struct SettingsView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("What Feedless hides")
+                } footer: {
+                    Text("Changes apply at once, without reloading the page.")
                 }
 
                 Section("Home feed") {

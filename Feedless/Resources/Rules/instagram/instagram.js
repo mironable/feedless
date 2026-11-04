@@ -276,20 +276,40 @@
     }
   }
 
+  function commonAncestor(a, b) {
+    var node = a;
+    while (node && !node.contains(b)) { node = node.parentElement; }
+    return node;
+  }
+
+  // The ancestor of `node` that is a direct child of `group`.
+  function childOf(group, node) {
+    var current = node;
+    while (current && current.parentElement !== group) { current = current.parentElement; }
+    return current;
+  }
+
   function injectSettingsButton() {
     if (window !== window.top || document.getElementById('feedless-settings')) { return; }
     var header = document.querySelector('header');
     if (!header) { return; }
     var plus = header.querySelector('a[href="#"]');
-    if (!plus || !plus.querySelector('svg')) { return; }
-    var cell = plus.closest('span') || plus.parentElement;
-    var clone = cell.cloneNode(true);
-    clone.removeAttribute('aria-describedby');
+    var heart = header.querySelector('a[href="/notifications/"]');
+    if (!plus || !heart || !plus.querySelector('svg')) { return; }
+    var group = commonAncestor(plus, heart);
+    var plusCell = childOf(group, plus);
+    if (!group || !plusCell) { return; }
+    var clone = plusCell.cloneNode(true);
+    var forms = clone.querySelectorAll('form, input');
+    for (var i = 0; i < forms.length; i++) { forms[i].remove(); }
+    var described = clone.querySelectorAll('[aria-describedby]');
+    for (var j = 0; j < described.length; j++) { described[j].removeAttribute('aria-describedby'); }
     var link = clone.querySelector('a');
+    var svg = clone.querySelector('svg');
+    if (!link || !svg) { return; }
     link.id = 'feedless-settings';
     link.setAttribute('href', '#');
     link.setAttribute('aria-label', 'Feedless settings');
-    var svg = clone.querySelector('svg');
     svg.setAttribute('aria-label', 'Feedless settings');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.innerHTML = '<title>Feedless settings</title>' + GEAR_SVG;
@@ -303,7 +323,30 @@
     }
     link.addEventListener('touchend', open, true);
     link.addEventListener('click', open, true);
-    cell.parentElement.insertBefore(clone, cell);
+    group.insertBefore(clone, plusCell);
+    html.setAttribute('data-fl-gear', '');
+  }
+
+  // ---- Bottom nav ---------------------------------------------------------
+  // Hiding only the <a> leaves its wrapper in the flex row and the spacing uneven.
+  // Flag the whole cell, found as the link's ancestor beside the Home cell.
+  var NAV_CELLS = [
+    { category: 'reels', selector: 'a[href="/reels/"]' },
+    { category: 'explore', selector: 'a[href="/explore/"]' }
+  ];
+
+  function flagNavCells() {
+    var home = document.querySelector('a[href="' + homePath() + '"], a[href="/"]');
+    if (!home) { return; }
+    for (var i = 0; i < NAV_CELLS.length; i++) {
+      var links = document.querySelectorAll(NAV_CELLS[i].selector);
+      for (var j = 0; j < links.length; j++) {
+        if (links[j].closest('header')) { continue; }
+        var group = commonAncestor(links[j], home);
+        var cell = group ? childOf(group, links[j]) : null;
+        flag(cell || links[j], NAV_CELLS[i].category);
+      }
+    }
   }
 
   // ---- Hand-off for media the web client cannot show ----------------------
@@ -344,6 +387,7 @@
       rewriteHomeLinks();
       enforceFeedVariant();
       injectSettingsButton();
+      flagNavCells();
       if (enabled('ads') || enabled('suggested') || enabled('reels')) { scanFeedLabels(); }
       if (enabled('reels')) { scanReelsRail(); }
       if (enabled('stories')) { scanStoriesTray(); }
@@ -360,7 +404,10 @@
 
   function start() {
     run();
-    var observer = new MutationObserver(schedule);
+    var observer = new MutationObserver(function () {
+      if (!document.getElementById('feedless-settings')) { injectSettingsButton(); }
+      schedule();
+    });
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 

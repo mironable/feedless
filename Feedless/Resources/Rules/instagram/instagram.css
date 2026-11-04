@@ -16,9 +16,10 @@ html[data-fl-reels] [data-fl-hidden~="reels"] {
 }
 
 /* ---- Explore -------------------------------------------------------------- */
-/* The Search tab stays, since it is the only way to find accounts. The explore grid that
- * Instagram renders under the search field goes, together with its infinite-scroll spinner,
- * which would otherwise stay in view and fetch page after page. */
+/* The Search tab goes with its cell (flagged by instagram.js) so the remaining tabs keep even
+ * spacing. If the explore page is reached anyway, its grid and the infinite-scroll spinner go
+ * too, since a visible spinner would fetch page after page. */
+html[data-fl-explore] a[href="/explore/"],
 html[data-fl-explore] [data-fl-hidden~="explore"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/p/"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/reel/"],
@@ -50,6 +51,13 @@ html[data-fl-stories] [data-pagelet="story_tray"],
 html[data-fl-stories] main ul:has(> li a[href^="/stories/"]),
 html[data-fl-stories] [data-fl-hidden~="stories"] {
   display: none !important;
+}
+
+/* ---- Settings gear (always on) -------------------------------------------- */
+/* The header's new-post and notifications icons wait for the gear so the three appear together. */
+html[data-fl-path="/"]:not([data-fl-gear]) header a[href="#"],
+html[data-fl-path="/"]:not([data-fl-gear]) header a[href="/notifications/"] {
+  visibility: hidden !important;
 }
 
 /* ---- Feed header (always on) ---------------------------------------------- */

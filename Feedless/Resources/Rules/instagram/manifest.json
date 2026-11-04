@@ -1,21 +1,52 @@
 {
   "id": "instagram",
   "name": "Instagram",
-  "hosts": ["instagram.com", "cdninstagram.com"],
+  "hosts": [
+    "instagram.com",
+    "cdninstagram.com"
+  ],
   "homeURL": "https://www.instagram.com/",
   "css": "instagram.css",
   "js": "instagram.js",
   "contentRules": "instagram.rules.json",
   "messageHandler": "feedless",
   "feeds": [
-    { "id": "following", "title": "Following", "path": "/?variant=following" },
-    { "id": "favorites", "title": "Favorites", "path": "/?variant=favorites" }
+    {
+      "id": "following",
+      "title": "Following",
+      "path": "/?variant=following"
+    },
+    {
+      "id": "favorites",
+      "title": "Favorites",
+      "path": "/?variant=favorites"
+    }
   ],
   "categories": [
-    { "id": "reels", "title": "Reels", "detail": "Reels tab and the Reels rail in the feed" },
-    { "id": "explore", "title": "Explore", "detail": "Explore grid under search; the search field stays" },
-    { "id": "suggested", "title": "Suggested posts", "detail": "Suggested for you posts and accounts" },
-    { "id": "ads", "title": "Ads", "detail": "Sponsored posts and ad or tracking requests" },
-    { "id": "stories", "title": "Stories", "detail": "Stories tray at the top of the feed" }
+    {
+      "id": "reels",
+      "title": "Hide Reels",
+      "detail": "On: the Reels tab is removed and the Reels rail is cut from the feed. Off: both show as on Instagram."
+    },
+    {
+      "id": "explore",
+      "title": "Hide Search and Explore",
+      "detail": "On: the Search tab is removed and the Explore grid stays hidden. Off: both show as on Instagram."
+    },
+    {
+      "id": "suggested",
+      "title": "Hide suggested posts",
+      "detail": "On: Suggested for you posts and account carousels are cut from the feed. Off: they show."
+    },
+    {
+      "id": "ads",
+      "title": "Hide ads",
+      "detail": "On: Sponsored posts are cut from the feed and ad and tracking requests are blocked. Off: they show and load."
+    },
+    {
+      "id": "stories",
+      "title": "Hide stories",
+      "detail": "On: the stories tray at the top of the feed is removed. Off: it shows."
+    }
   ]
 }

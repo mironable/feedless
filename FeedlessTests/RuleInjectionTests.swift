@@ -49,9 +49,9 @@ final class RuleInjectionTests: XCTestCase {
         }
     }
 
-    func testReelsTabHiddenSearchTabKept() async throws {
+    func testReelsAndSearchTabsHidden() async throws {
         await assertDisplay("#nav-reels", "none")
-        await assertDisplay("#nav-explore", "inline")
+        await assertDisplay("#nav-explore", "none")
         await assertDisplay("#nav-home", "inline")
         await assertDisplay("#nav-direct", "inline")
     }
@@ -81,6 +81,7 @@ final class RuleInjectionTests: XCTestCase {
         _ = try await webView.evaluateJavaScript(config.updateSource() + "; true")
         await assertDisplay("#nav-reels", "inline")
         await assertDisplay("#reels-rail", "block")
+        await assertDisplay("#nav-explore", "none")
         await assertDisplay("#sponsored", "none")
     }
 
