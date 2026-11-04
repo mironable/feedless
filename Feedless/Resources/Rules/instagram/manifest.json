@@ -1,0 +1,21 @@
+{
+  "id": "instagram",
+  "name": "Instagram",
+  "hosts": ["instagram.com", "cdninstagram.com"],
+  "homeURL": "https://www.instagram.com/",
+  "css": "instagram.css",
+  "js": "instagram.js",
+  "contentRules": "instagram.rules.json",
+  "messageHandler": "feedless",
+  "feeds": [
+    { "id": "following", "title": "Following", "path": "/?variant=following" },
+    { "id": "favorites", "title": "Favorites", "path": "/?variant=favorites" }
+  ],
+  "categories": [
+    { "id": "reels", "title": "Reels", "detail": "Reels tab and the Reels rail in the feed" },
+    { "id": "explore", "title": "Explore", "detail": "Explore tab and search suggestions" },
+    { "id": "suggested", "title": "Suggested posts", "detail": "Suggested for you posts and accounts" },
+    { "id": "ads", "title": "Ads", "detail": "Sponsored posts and ad or tracking requests" },
+    { "id": "stories", "title": "Stories", "detail": "Stories tray at the top of the feed" }
+  ]
+}

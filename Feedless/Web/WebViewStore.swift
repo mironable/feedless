@@ -1,0 +1,81 @@
+import Foundation
+import WebKit
+import Combine
+
+/// Owns the single WKWebView for the app's lifetime so login and scroll state survive view updates.
+@MainActor
+final class WebViewStore: ObservableObject {
+    static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+
+    let rules: PlatformRules
+    let policy: NavigationPolicy
+    let loader: RuleLoader
+    let settings: Settings
+    let webView: WKWebView
+
+    @Published var externalURL: URL?
+    @Published var canGoBack = false
+
+    private var cancellables = Set<AnyCancellable>()
+
+    init(loader: RuleLoader, rules: PlatformRules, settings: Settings) {
+        self.loader = loader
+        self.rules = rules
+        self.settings = settings
+        policy = NavigationPolicy(rules: rules)
+
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        configuration.applicationNameForUserAgent = nil
+
+        webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.customUserAgent = Self.userAgent
+        webView.allowsBackForwardNavigationGestures = true
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+
+        installUserScripts()
+        webView.publisher(for: \.canGoBack).assign(to: &$canGoBack)
+
+        settings.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.applySettings() }
+            .store(in: &cancellables)
+    }
+
+    var startURL: URL { rules.startURL(feedID: settings.feedID) }
+
+    func loadHome() {
+        webView.load(URLRequest(url: startURL))
+    }
+
+    func loadStartIfBlank() {
+        if webView.url == nil { loadHome() }
+    }
+
+    /// Re-registers scripts for future navigations and pushes the config into the current page.
+    func applySettings() {
+        installUserScripts()
+        webView.evaluateJavaScript(settings.injectedConfig.updateSource())
+    }
+
+    func resetSession() async {
+        let store = webView.configuration.websiteDataStore
+        let records = await store.dataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes())
+        await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: records)
+        loadHome()
+    }
+
+    private func installUserScripts() {
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        do {
+            for script in try loader.userScripts(rules: rules, config: settings.injectedConfig) {
+                controller.addUserScript(script)
+            }
+        } catch {
+            assertionFailure("Rule files missing: \(error)")
+        }
+    }
+}
