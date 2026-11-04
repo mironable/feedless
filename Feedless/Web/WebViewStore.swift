@@ -34,7 +34,7 @@ final class WebViewStore: ObservableObject {
 
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.customUserAgent = Self.userAgent
-        webView.allowsBackForwardNavigationGestures = true
+        webView.allowsBackForwardNavigationGestures = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
 
         installUserScripts()
@@ -94,6 +94,16 @@ final class WebViewStore: ObservableObject {
             appliedFeedID = settings.feedID
             if webView.url?.path() == "/" { loadHome() }
         }
+    }
+
+    /// Current document HTML written to a temp file, for inspecting Instagram's live DOM.
+    func exportPageHTML() async throws -> URL {
+        let html = try await webView.evaluateJavaScript("document.documentElement.outerHTML") as? String ?? ""
+        let path = (webView.url?.path() ?? "page").replacingOccurrences(of: "/", with: "_")
+        let stamp = ISO8601DateFormatter().string(from: .now).replacingOccurrences(of: ":", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("instagram\(path)-\(stamp).html")
+        try html.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 
     func resetSession() async {

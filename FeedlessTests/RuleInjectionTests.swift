@@ -78,6 +78,13 @@ final class RuleInjectionTests: XCTestCase {
         await assertDisplay("#nav-explore", "none")
     }
 
+    func testHomeLinksPointAtChosenFeed() async throws {
+        let href = try await webView.evaluateJavaScript("document.querySelector('#nav-home').getAttribute('href')") as? String
+        XCTAssertEqual(href, "/?variant=following")
+        let stillHome = try await webView.evaluateJavaScript("location.pathname") as? String
+        XCTAssertEqual(stillHome, "/")
+    }
+
     func testPathAttributeTracksLocation() async throws {
         let path = try await webView.evaluateJavaScript("document.documentElement.getAttribute('data-fl-path')") as? String
         XCTAssertEqual(path, "/")

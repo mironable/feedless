@@ -29,7 +29,7 @@
 
   // ---- Navigation --------------------------------------------------------
   // Instagram is a single-page app, so most taps never reach WKNavigationDelegate.
-  function enforceLocation() {
+  function enforceLocation(viaHistory) {
     setPathAttribute();
     if (window !== window.top) { return; }
     var path = location.pathname;
@@ -40,7 +40,13 @@
     if (path === '/' || path === '') {
       var variant = new URLSearchParams(location.search).get('variant');
       if (FEED_VARIANTS.indexOf(variant) < 0) {
-        location.replace(homePath());
+        if (viaHistory) {
+          // Instagram's router dropped the variant on an in-page hop. Correct the URL quietly;
+          // enforceFeedHeader reloads only if the wrong feed actually rendered.
+          history.replaceState(history.state, '', homePath());
+        } else {
+          location.replace(homePath());
+        }
       }
     }
   }
@@ -49,15 +55,15 @@
     var original = history[method];
     history[method] = function () {
       var result = original.apply(this, arguments);
-      enforceLocation();
+      enforceLocation(true);
       schedule();
       return result;
     };
   }
   hookHistory('pushState');
   hookHistory('replaceState');
-  window.addEventListener('popstate', function () { enforceLocation(); schedule(); });
-  enforceLocation();
+  window.addEventListener('popstate', function () { enforceLocation(true); schedule(); });
+  enforceLocation(false);
 
   // ---- Hiding ------------------------------------------------------------
   function flag(element, category) {
@@ -131,18 +137,35 @@
     }
   }
 
+  function rewriteHomeLinks() {
+    var links = document.querySelectorAll('a[href="/"]');
+    for (var i = 0; i < links.length; i++) {
+      links[i].setAttribute('href', homePath());
+    }
+  }
+
   // ---- Feed selector -----------------------------------------------------
-  function enforceFeedHeader() {
-    if (location.pathname !== '/' || window !== window.top) { return; }
-    var header = document.querySelector('header') || document.querySelector('main');
-    if (!header) { return; }
+  var FEED_TITLES = { following: 'Following', favorites: 'Favorites' };
+
+  function headerShowsFeed(feedID) {
+    var header = document.querySelector('header');
+    if (!header) { return false; }
     var leaves = header.querySelectorAll('span, div, h1, h2');
     for (var i = 0; i < leaves.length; i++) {
-      var text = leafText(leaves[i]);
-      if (text === 'For you') {
-        location.replace(homePath());
-        return;
-      }
+      if (leafText(leaves[i]) === FEED_TITLES[feedID]) { return true; }
+    }
+    return false;
+  }
+
+  // On the home path a feed has rendered when articles exist. The variant feeds title their
+  // header "Following" or "Favorites"; the default feed shows the wordmark instead.
+  function enforceFeedHeader() {
+    if (location.pathname !== '/' || window !== window.top) { return; }
+    if (!document.querySelector('main article')) { return; }
+    var wanted = FEED_VARIANTS.indexOf(config.feed) >= 0 ? config.feed : 'following';
+    if (!headerShowsFeed(wanted)) {
+      location.replace(homePath());
+      return;
     }
     var chevrons = document.querySelectorAll('header svg[aria-label="Down chevron icon"], header svg[aria-label="Down Chevron Icon"]');
     for (var k = 0; k < chevrons.length; k++) {
@@ -190,6 +213,7 @@
     scheduled = null;
     if (!document.body) { return; }
     try {
+      rewriteHomeLinks();
       enforceFeedHeader();
       if (enabled('ads') || enabled('suggested') || enabled('reels')) { scanFeedLabels(); }
       if (enabled('reels')) { scanReelsRail(); }
@@ -220,7 +244,7 @@
   // Called by the native side after a settings change; attributes are flipped by the caller.
   window.__feedlessApply = function (next) {
     config = next || config;
-    enforceLocation();
+    enforceLocation(true);
     schedule();
   };
 })();

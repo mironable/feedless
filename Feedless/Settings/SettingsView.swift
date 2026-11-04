@@ -5,6 +5,12 @@ struct SettingsView: View {
     @EnvironmentObject private var store: WebViewStore
     @Environment(\.dismiss) private var dismiss
     @State private var confirmReset = false
+    @State private var exportedFile: ExportedFile?
+
+    private struct ExportedFile: Identifiable {
+        let url: URL
+        var id: String { url.path }
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,6 +37,11 @@ struct SettingsView: View {
 
                 Section("Debug") {
                     Toggle("Show touches", isOn: $settings.showTouches)
+                    Button("Export page HTML") {
+                        Task {
+                            if let url = try? await store.exportPageHTML() { exportedFile = ExportedFile(url: url) }
+                        }
+                    }
                 }
 
                 Section {
@@ -45,6 +56,9 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(item: $exportedFile) { file in
+                ShareSheet(items: [file.url])
             }
             .confirmationDialog("Reset session?", isPresented: $confirmReset, titleVisibility: .visible) {
                 Button("Reset and sign out", role: .destructive) {
@@ -63,4 +77,14 @@ struct SettingsView: View {
             set: { settings.setEnabled($0, for: categoryID) }
         )
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
