@@ -86,7 +86,7 @@ struct SettingsView: View {
                 Section {
                     Button("Reset session", role: .destructive) { confirmReset = true }
                 } footer: {
-                    Text("Signs you out and clears cookies, cache and site data for \(store.rules.name). Shake the phone to open this screen.")
+                    Text("Signs you out and clears cookies, cache and site data for \(store.rules.name). Tap the gear in Instagram's header or shake the phone to open this screen.")
                 }
             }
             .navigationTitle("Feedless")

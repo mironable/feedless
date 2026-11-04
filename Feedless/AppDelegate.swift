@@ -5,6 +5,7 @@ import UserNotifications
 final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     static let shakeNotification = Notification.Name("feedless.shake")
     static let openURLNotification = Notification.Name("feedless.openURL")
+    static let openSettingsNotification = Notification.Name("feedless.openSettings")
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         BackgroundRefresh.register()

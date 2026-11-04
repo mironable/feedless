@@ -257,15 +257,51 @@
     }
   }
 
+  // ---- Settings entry in Instagram's header ---------------------------------
+  // The home header's right-hand row is [new post] [notifications]. A clone of the new-post
+  // cell carries Instagram's own sizing; only the icon and the click differ.
+  var GEAR_SVG = '<circle cx="12" cy="12" r="3.25" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/>' +
+    '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/>';
+
+  function postMessage(body) {
+    try {
+      window.webkit.messageHandlers.feedless.postMessage(body);
+    } catch (error) {
+      // Not running inside the Feedless web view.
+    }
+  }
+
+  function injectSettingsButton() {
+    if (window !== window.top || document.getElementById('feedless-settings')) { return; }
+    var header = document.querySelector('header');
+    if (!header) { return; }
+    var plus = header.querySelector('a[href="#"]');
+    if (!plus || !plus.querySelector('svg')) { return; }
+    var cell = plus.closest('span') || plus.parentElement;
+    var clone = cell.cloneNode(true);
+    clone.removeAttribute('aria-describedby');
+    var link = clone.querySelector('a');
+    link.id = 'feedless-settings';
+    link.setAttribute('href', '#');
+    link.setAttribute('aria-label', 'Feedless settings');
+    var svg = clone.querySelector('svg');
+    svg.setAttribute('aria-label', 'Feedless settings');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.innerHTML = '<title>Feedless settings</title>' + GEAR_SVG;
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      postMessage({ type: 'openSettings' });
+    }, true);
+    cell.parentElement.insertBefore(clone, cell);
+  }
+
   // ---- Hand-off for media the web client cannot show ----------------------
   var HANDOFF_RE = /can only be (replayed|viewed|seen) once|use the (mobile |instagram )?app to (view|listen|see)|not available on (the )?web|open the instagram app/i;
 
   function postOpenInApp() {
-    try {
-      window.webkit.messageHandlers.feedless.postMessage({ type: 'openInApp', url: location.href });
-    } catch (error) {
-      // Not running inside the Feedless web view.
-    }
+    postMessage({ type: 'openInApp', url: location.href });
   }
 
   function scanHandoffPlaceholders() {
@@ -298,6 +334,7 @@
     try {
       rewriteHomeLinks();
       enforceFeedHeader();
+      injectSettingsButton();
       if (enabled('ads') || enabled('suggested') || enabled('reels')) { scanFeedLabels(); }
       if (enabled('reels')) { scanReelsRail(); }
       if (enabled('stories')) { scanStoriesTray(); }

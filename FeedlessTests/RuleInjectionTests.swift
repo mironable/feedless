@@ -91,6 +91,19 @@ final class RuleInjectionTests: XCTestCase {
         XCTAssertEqual(stillHome, "/")
     }
 
+    func testSettingsGearInjectedBeforeNewPost() async throws {
+        let script = """
+        (function () {
+          var gear = document.getElementById('feedless-settings');
+          if (!gear) { return 'missing'; }
+          var cells = Array.from(document.querySelectorAll('#header-actions a'));
+          return cells.map(function (a) { return a.id || a.getAttribute('href'); }).join(',');
+        })()
+        """
+        let order = try await webView.evaluateJavaScript(script) as? String
+        XCTAssertEqual(order, "feedless-settings,#,/notifications/")
+    }
+
     func testPathAttributeTracksLocation() async throws {
         let path = try await webView.evaluateJavaScript("document.documentElement.getAttribute('data-fl-path')") as? String
         XCTAssertEqual(path, "/")

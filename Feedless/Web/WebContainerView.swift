@@ -71,6 +71,8 @@ struct WebContainerView: UIViewRepresentable {
             switch type {
             case "openInApp":
                 openInNativeApp(pageURL: message.frameInfo.request.url ?? store.webView.url)
+            case "openSettings":
+                NotificationCenter.default.post(name: AppDelegate.openSettingsNotification, object: nil)
             default:
                 break
             }

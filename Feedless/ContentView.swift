@@ -9,18 +9,6 @@ struct ContentView: View {
 
     var body: some View {
         WebContainerView(store: store)
-            .overlay(alignment: .bottomTrailing) {
-                Button { showSettings = true } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 34, height: 34)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .padding(.trailing, 10)
-                .padding(.bottom, 64)
-                .accessibilityLabel("Feedless settings")
-            }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
@@ -28,6 +16,9 @@ struct ContentView: View {
                 TouchIndicator.setEnabled(settings.showTouches, in: window)
             })
             .onReceive(NotificationCenter.default.publisher(for: AppDelegate.shakeNotification)) { _ in
+                showSettings = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppDelegate.openSettingsNotification)) { _ in
                 showSettings = true
             }
             .onReceive(NotificationCenter.default.publisher(for: AppDelegate.openURLNotification)) { note in
