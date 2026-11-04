@@ -59,7 +59,7 @@
 
   function keepBadgeRequest(entry, responseText) {
     if (!isBadgeRequest(entry)) { return; }
-    entry.response = responseText ? String(responseText).slice(0, 4000) : null;
+    entry.response = responseText ? String(responseText).slice(0, 60000) : null;
     window.__feedlessBadgeRequest = {
       t: entry.t,
       url: entry.url,
