@@ -23,13 +23,6 @@ html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/p/"],
 html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/reel/"] {
   display: none !important;
 }
-/* Tab order: Home, Search, then the rest. Only takes effect where the nav is a flex row. */
-nav a[href="/"], nav a[href^="/?variant="], nav *:has(> a[href="/"]), nav *:has(> a[href^="/?variant="]) {
-  order: -2;
-}
-nav a[href="/explore/"], nav *:has(> a[href="/explore/"]) {
-  order: -1;
-}
 
 /* ---- Suggested accounts and posts ----------------------------------------- */
 html[data-fl-suggested] a[href="/explore/people/"],
@@ -49,8 +42,9 @@ html[data-fl-ads] a[href^="/live/?"] {
 }
 
 /* ---- Stories tray --------------------------------------------------------- */
+/* Mobile web marks the tray with data-pagelet; its items are buttons labelled "Story by …". */
+html[data-fl-stories] [data-pagelet="story_tray"],
 html[data-fl-stories] main ul:has(> li a[href^="/stories/"]),
-html[data-fl-stories] main div[role="menu"]:has(a[href^="/stories/"]),
 html[data-fl-stories] [data-fl-hidden~="stories"] {
   display: none !important;
 }

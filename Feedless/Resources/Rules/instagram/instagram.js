@@ -12,6 +12,89 @@
   var MAX_CLIMB = 12;
 
   var config = window.__feedless || { feed: 'following', categories: {} };
+
+  // ---- Network log (debug) ----------------------------------------------
+  var NET_MAX = 300;
+  var net = window.__feedlessNet = [];
+
+  function headersToObject(headers) {
+    var out = {};
+    try {
+      if (!headers) { return out; }
+      if (typeof headers.forEach === 'function') {
+        headers.forEach(function (value, key) { out[key] = value; });
+      } else {
+        Object.keys(headers).forEach(function (key) { out[key] = headers[key]; });
+      }
+    } catch (error) { /* ignore */ }
+    return out;
+  }
+
+  function bodyToString(body) {
+    try {
+      if (body == null) { return null; }
+      if (typeof body === 'string') { return body.slice(0, 4000); }
+      if (body instanceof URLSearchParams) { return body.toString().slice(0, 4000); }
+      if (body instanceof FormData) {
+        var parts = [];
+        body.forEach(function (value, key) { parts.push(key + '=' + String(value).slice(0, 300)); });
+        return parts.join('&').slice(0, 4000);
+      }
+      return '[' + (body.constructor && body.constructor.name) + ']';
+    } catch (error) { return null; }
+  }
+
+  function record(entry) {
+    if (net.length >= NET_MAX) { net.shift(); }
+    net.push(entry);
+  }
+
+  if (window.fetch) {
+    var originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var entry = {
+        t: Date.now(),
+        kind: 'fetch',
+        method: (init && init.method) || (input && input.method) || 'GET',
+        url: String(input && input.url ? input.url : input),
+        headers: headersToObject(init && init.headers ? init.headers : (input && input.headers)),
+        body: bodyToString(init && init.body),
+        status: null
+      };
+      record(entry);
+      return originalFetch.apply(this, arguments).then(function (response) {
+        entry.status = response.status;
+        return response;
+      }, function (error) {
+        entry.status = 'error';
+        throw error;
+      });
+    };
+  }
+
+  if (window.XMLHttpRequest) {
+    var open = XMLHttpRequest.prototype.open;
+    var send = XMLHttpRequest.prototype.send;
+    var setHeader = XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this.__fl = { t: Date.now(), kind: 'xhr', method: method, url: String(url), headers: {}, body: null, status: null };
+      return open.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.setRequestHeader = function (key, value) {
+      if (this.__fl) { this.__fl.headers[key] = value; }
+      return setHeader.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function (body) {
+      var entry = this.__fl;
+      if (entry) {
+        entry.body = bodyToString(body);
+        record(entry);
+        this.addEventListener('loadend', function () { entry.status = this.status; });
+      }
+      return send.apply(this, arguments);
+    };
+  }
+
   var html = document.documentElement;
   var scheduled = null;
 

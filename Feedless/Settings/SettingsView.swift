@@ -76,6 +76,11 @@ struct SettingsView: View {
                             if let url = try? await store.exportPageHTML() { exportedFile = ExportedFile(url: url) }
                         }
                     }
+                    Button("Export network log") {
+                        Task {
+                            if let url = try? await store.exportNetworkLog() { exportedFile = ExportedFile(url: url) }
+                        }
+                    }
                 }
 
                 Section {

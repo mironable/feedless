@@ -44,6 +44,7 @@ final class WebViewStore: ObservableObject {
             .store(in: &cancellables)
 
         Task { await compileContentRules() }
+        InboxPoller.shared.claimProvider = { [weak self] in await self?.wwwClaim() }
     }
 
     private func compileContentRules() async {
@@ -97,6 +98,20 @@ final class WebViewStore: ObservableObject {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("instagram\(path)-\(stamp).html")
         try html.write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    /// Requests recorded by the page script since load, as JSON, for finding Instagram's live API calls.
+    func exportNetworkLog() async throws -> URL {
+        let json = try await webView.evaluateJavaScript("JSON.stringify(window.__feedlessNet || [], null, 1)") as? String ?? "[]"
+        let stamp = ISO8601DateFormatter().string(from: .now).replacingOccurrences(of: ":", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("instagram-network-\(stamp).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    /// Instagram's client keeps a per-session claim token in sessionStorage and sends it on API calls.
+    func wwwClaim() async -> String? {
+        try? await webView.evaluateJavaScript("sessionStorage.getItem('www-claim-v2')") as? String
     }
 
     func resetSession() async {

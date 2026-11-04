@@ -12,19 +12,28 @@ final class InboxPoller {
     enum PollError: LocalizedError {
         case notEnabled
         case notLoggedIn
-        case http(Int, String)
+        case http([String])
 
         var errorDescription: String? {
             switch self {
             case .notEnabled: return "Message alerts are off"
             case .notLoggedIn: return "No Instagram session cookie"
-            case .http(let status, let snippet): return "HTTP \(status): \(snippet)"
+            case .http(let attempts): return attempts.joined(separator: "; ")
             }
         }
     }
 
-    private static let inboxURL = URL(string: "https://www.instagram.com/api/v1/direct_v2/inbox/?persistentBadging=true&folder=&limit=20&thread_message_limit=10")!
+    /// Known inbox endpoints, tried in order until one answers 200. The web client has moved
+    /// between these hosts over the years.
+    private static let candidates: [(label: String, url: URL)] = [
+        ("www", URL(string: "https://www.instagram.com/api/v1/direct_v2/inbox/?persistentBadging=true&folder=&limit=20&thread_message_limit=10")!),
+        ("i", URL(string: "https://i.instagram.com/api/v1/direct_v2/inbox/?persistentBadging=true&folder=&limit=20&thread_message_limit=10")!),
+    ]
     private static let webAppID = "936619743392459"
+    private static let asbdID = "129477"
+
+    /// Supplied by the web view: Instagram's per-session claim header, kept in sessionStorage.
+    var claimProvider: (() async -> String?)?
     private let log = Logger(subsystem: "com.mironable.feedless", category: "inbox")
     private let defaults = UserDefaults.standard
 
@@ -71,23 +80,35 @@ final class InboxPoller {
             .filter { $0.domain.hasSuffix("instagram.com") }
         guard cookies.contains(where: { $0.name == "sessionid" && !$0.value.isEmpty }) else { throw PollError.notLoggedIn }
         let csrf = cookies.first { $0.name == "csrftoken" }?.value ?? ""
+        let claim = await claimProvider?() ?? "0"
 
-        var request = URLRequest(url: Self.inboxURL, timeoutInterval: 20)
-        request.httpShouldHandleCookies = false
-        request.setValue(cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; "), forHTTPHeaderField: "Cookie")
-        request.setValue(WebViewStore.userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(Self.webAppID, forHTTPHeaderField: "X-IG-App-ID")
-        request.setValue(csrf, forHTTPHeaderField: "X-CSRFToken")
-        request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
-        request.setValue("https://www.instagram.com/direct/inbox/", forHTTPHeaderField: "Referer")
-        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        var attempts: [String] = []
+        let preferred = defaults.integer(forKey: Keys.endpoint)
+        let order = Array(Self.candidates.indices).sorted { ($0 == preferred ? 0 : 1, $0) < ($1 == preferred ? 0 : 1, $1) }
+        for index in order {
+            let candidate = Self.candidates[index]
+            var request = URLRequest(url: candidate.url, timeoutInterval: 20)
+            request.httpShouldHandleCookies = false
+            request.setValue(cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; "), forHTTPHeaderField: "Cookie")
+            request.setValue(WebViewStore.userAgent, forHTTPHeaderField: "User-Agent")
+            request.setValue(Self.webAppID, forHTTPHeaderField: "X-IG-App-ID")
+            request.setValue(Self.asbdID, forHTTPHeaderField: "X-ASBD-ID")
+            request.setValue(claim, forHTTPHeaderField: "X-IG-WWW-Claim")
+            request.setValue(csrf, forHTTPHeaderField: "X-CSRFToken")
+            request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+            request.setValue("https://www.instagram.com/direct/inbox/", forHTTPHeaderField: "Referer")
+            request.setValue("*/*", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard status == 200 else {
-            throw PollError.http(status, String(decoding: data.prefix(120), as: UTF8.self))
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 200 {
+                defaults.set(index, forKey: Keys.endpoint)
+                return try InboxParser.parse(data)
+            }
+            let snippet = String(decoding: data.prefix(80), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
+            attempts.append("\(candidate.label) HTTP \(status) \(snippet)")
         }
-        return try InboxParser.parse(data)
+        throw PollError.http(attempts)
     }
 
     private func post(_ message: InboxMessage) async {
@@ -112,5 +133,6 @@ final class InboxPoller {
         static let enabled = "dmNotifications"
         static let summary = "inboxLastSummary"
         static let baseline = "inboxBaseline"
+        static let endpoint = "inboxEndpoint"
     }
 }
