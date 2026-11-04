@@ -53,13 +53,6 @@ html[data-fl-stories] [data-fl-hidden~="stories"] {
   display: none !important;
 }
 
-/* ---- Settings gear (always on) -------------------------------------------- */
-/* The header's new-post and notifications icons wait for the gear so the three appear together. */
-html[data-fl-path="/"]:not([data-fl-gear]) header a[href="#"],
-html[data-fl-path="/"]:not([data-fl-gear]) header a[href="/notifications/"] {
-  visibility: hidden !important;
-}
-
 /* ---- Feed header (always on) ---------------------------------------------- */
 /* The variant feed titles itself "< Following"; the chevron is a full-page link back to
  * the default feed. Keep the title, drop the chevron and make the link inert. */

@@ -26,27 +26,27 @@
     {
       "id": "reels",
       "title": "Hide Reels",
-      "detail": "On: the Reels tab is removed and the Reels rail is cut from the feed. Off: both show as on Instagram."
+      "detail": "When enabled, the Reels tab is removed and the Reels rail is cut from the feed."
     },
     {
       "id": "explore",
       "title": "Hide Search and Explore",
-      "detail": "On: the Search tab is removed and the Explore grid stays hidden. Off: both show as on Instagram."
+      "detail": "When enabled, the Search tab is removed and the Explore grid is cut from the search page."
     },
     {
       "id": "suggested",
       "title": "Hide suggested posts",
-      "detail": "On: Suggested for you posts and account carousels are cut from the feed. Off: they show."
+      "detail": "When enabled, Suggested for you posts and account carousels are cut from the feed."
     },
     {
       "id": "ads",
       "title": "Hide ads",
-      "detail": "On: Sponsored posts are cut from the feed and ad and tracking requests are blocked. Off: they show and load."
+      "detail": "When enabled, Sponsored posts are cut from the feed and ad and tracking requests are blocked."
     },
     {
       "id": "stories",
       "title": "Hide stories",
-      "detail": "On: the stories tray at the top of the feed is removed. Off: it shows."
+      "detail": "When enabled, the stories tray is removed from the top of the feed."
     }
   ]
 }

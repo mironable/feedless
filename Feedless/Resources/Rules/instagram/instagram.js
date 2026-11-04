@@ -235,22 +235,38 @@
   // Instagram's router drops the variant when it navigates to the default feed, so the URL
   // says which feed rendered without reading localised header text. Recovery goes through
   // Instagram's own router via the rewritten home link; a full reload is the fallback.
-  var recoveryStarted = 0;
+  var RECOVERY_SETTLE_MS = 800;
+  var RECOVERY_MAX_CLICKS = 2;
+  var variantMissingSince = 0;
+  var recoveryClicks = 0;
+  var recoveryReloaded = false;
 
   function enforceFeedVariant() {
     if (location.pathname !== '/' || window !== window.top) { return; }
     if (hasFeedVariant()) {
-      recoveryStarted = 0;
+      variantMissingSince = 0;
+      recoveryClicks = 0;
       return;
     }
+    var now = Date.now();
+    if (!variantMissingSince) {
+      variantMissingSince = now;
+      setTimeout(schedule, RECOVERY_SETTLE_MS);
+      return;
+    }
+    if (now - variantMissingSince < RECOVERY_SETTLE_MS) { return; }
     var link = document.querySelector('a[href="' + homePath() + '"]');
-    if (link && !recoveryStarted) {
-      recoveryStarted = Date.now();
+    if (link && recoveryClicks < RECOVERY_MAX_CLICKS) {
+      recoveryClicks += 1;
+      variantMissingSince = now;
+      record({ t: now, kind: 'feedless', message: 'feed recovery click ' + recoveryClicks });
       link.click();
-      setTimeout(schedule, 1500);
+      setTimeout(schedule, RECOVERY_SETTLE_MS * 2);
       return;
     }
-    if (!link || Date.now() - recoveryStarted > 1500) {
+    if (!recoveryReloaded) {
+      recoveryReloaded = true;
+      record({ t: now, kind: 'feedless', message: 'feed recovery reload' });
       location.replace(homePath());
       return;
     }
@@ -402,19 +418,15 @@
     scheduled = setTimeout(run, DEBOUNCE_MS);
   }
 
-  function start() {
-    run();
-    var observer = new MutationObserver(function () {
-      if (!document.getElementById('feedless-settings')) { injectSettingsButton(); }
-      schedule();
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
+  new MutationObserver(function () {
+    if (!document.getElementById('feedless-settings')) { injectSettingsButton(); }
+    schedule();
+  }).observe(document.documentElement, { childList: true, subtree: true });
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
+    document.addEventListener('DOMContentLoaded', run, { once: true });
   } else {
-    start();
+    run();
   }
 
   // Called by the native side after a settings change; attributes are flipped by the caller.
