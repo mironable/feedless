@@ -7,6 +7,18 @@ struct ContentView: View {
 
     var body: some View {
         WebContainerView(store: store)
+            .overlay(alignment: .bottomTrailing) {
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 34, height: 34)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding(.trailing, 10)
+                .padding(.bottom, 64)
+                .accessibilityLabel("Feedless settings")
+            }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
