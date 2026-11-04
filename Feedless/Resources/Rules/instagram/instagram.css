@@ -1,0 +1,82 @@
+/* Feedless rules for instagram.com mobile web.
+ *
+ * Every rule is scoped to an attribute on <html> so the native side can toggle a
+ * category without reloading:
+ *   html[data-fl-<category>]   category enabled (set by the injected config prelude)
+ *   html[data-fl-path="..."]   current pathname (kept current by instagram.js)
+ *   [data-fl-hidden~="<cat>"]  element flagged by instagram.js after a text or structure check
+ *
+ * Selectors use hrefs, roles and aria-labels. Generated class names are avoided. */
+
+/* ---- Reels ---------------------------------------------------------------- */
+html[data-fl-reels] a[href="/reels/"],
+html[data-fl-reels] a[href^="/reels/?"],
+html[data-fl-reels] [data-fl-hidden~="reels"] {
+  display: none !important;
+}
+
+/* ---- Explore -------------------------------------------------------------- */
+html[data-fl-explore] a[href="/explore/"],
+html[data-fl-explore] a[href^="/explore/?"],
+html[data-fl-explore] [data-fl-hidden~="explore"] {
+  display: none !important;
+}
+/* The search page renders the explore grid under the search field. Keep the field, drop the grid. */
+html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/p/"],
+html[data-fl-explore][data-fl-path^="/explore/"] main a[href^="/reel/"] {
+  display: none !important;
+}
+
+/* ---- Suggested accounts and posts ----------------------------------------- */
+html[data-fl-suggested] a[href="/explore/people/"],
+html[data-fl-suggested] a[href^="/explore/people/?"],
+html[data-fl-suggested] [data-fl-hidden~="suggested"] {
+  display: none !important;
+}
+
+/* ---- Ads ------------------------------------------------------------------ */
+html[data-fl-ads] [data-fl-hidden~="ads"],
+html[data-fl-ads] a[href="/shop/"],
+html[data-fl-ads] a[href^="/shopping/"],
+html[data-fl-ads] a[href^="/shop/?"],
+html[data-fl-ads] a[href="/live/"],
+html[data-fl-ads] a[href^="/live/?"] {
+  display: none !important;
+}
+
+/* ---- Stories tray --------------------------------------------------------- */
+html[data-fl-stories] main ul:has(> li a[href^="/stories/"]),
+html[data-fl-stories] main div[role="menu"]:has(a[href^="/stories/"]),
+html[data-fl-stories] [data-fl-hidden~="stories"] {
+  display: none !important;
+}
+
+/* ---- Feed selector (always on) -------------------------------------------- */
+/* The home header shows the wordmark with a chevron that opens "Following / Favorites / For you".
+ * Hide the chevron and the menu, and make the wordmark inert so the menu cannot open. */
+html[data-fl-path="/"] header svg[aria-label="Down chevron icon"],
+html[data-fl-path="/"] header svg[aria-label="Down Chevron Icon"],
+[data-fl-hidden~="feedselector"],
+div[role="menu"]:has(a[href^="/?variant="]),
+div[role="dialog"]:has(a[href^="/?variant="]),
+*:has(> a[href="/?variant=following"]):has(> a[href="/?variant=favorites"]) {
+  display: none !important;
+}
+html[data-fl-path="/"] header *:has(> svg[aria-label="Down chevron icon"]),
+html[data-fl-path="/"] header *:has(> svg[aria-label="Down Chevron Icon"]) {
+  pointer-events: none !important;
+}
+
+/* ---- Hand-off button for media the web client cannot show ------------------ */
+.feedless-handoff {
+  display: inline-block;
+  margin: 6px 0;
+  padding: 8px 14px;
+  border-radius: 18px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
