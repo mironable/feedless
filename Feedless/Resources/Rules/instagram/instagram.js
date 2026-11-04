@@ -128,18 +128,14 @@
       location.replace(homePath());
       return;
     }
-    if (path === '/' || path === '') {
-      var variant = new URLSearchParams(location.search).get('variant');
-      if (FEED_VARIANTS.indexOf(variant) < 0) {
-        if (viaHistory) {
-          // Instagram's router dropped the variant on an in-page hop. Correct the URL quietly;
-          // enforceFeedHeader reloads only if the wrong feed actually rendered.
-          history.replaceState(history.state, '', homePath());
-        } else {
-          location.replace(homePath());
-        }
-      }
+    if ((path === '/' || path === '') && !viaHistory && !hasFeedVariant()) {
+      // A real page load without a feed variant; in-page hops are handled by enforceFeedVariant.
+      location.replace(homePath());
     }
+  }
+
+  function hasFeedVariant() {
+    return FEED_VARIANTS.indexOf(new URLSearchParams(location.search).get('variant')) >= 0;
   }
 
   function hookHistory(method) {
@@ -236,27 +232,14 @@
   }
 
   // ---- Feed selector -----------------------------------------------------
-  var FEED_TITLES = { following: 'Following', favorites: 'Favorites' };
-
-  function headerShowsFeed(feedID) {
-    var header = document.querySelector('header');
-    if (!header) { return false; }
-    var leaves = header.querySelectorAll('span, div, h1, h2');
-    for (var i = 0; i < leaves.length; i++) {
-      if (leafText(leaves[i]) === FEED_TITLES[feedID]) { return true; }
-    }
-    return false;
-  }
-
-  // On the home path a feed has rendered when articles exist. The variant feeds title their
-  // header "Following" or "Favorites"; the default feed shows the wordmark instead.
+  // Instagram's router drops the variant when it navigates to the default feed, so the URL
+  // says which feed rendered without reading localised header text. Recovery goes through
+  // Instagram's own router via the rewritten home link; a full reload is the fallback.
   var recoveryStarted = 0;
 
-  function enforceFeedHeader() {
+  function enforceFeedVariant() {
     if (location.pathname !== '/' || window !== window.top) { return; }
-    if (!document.querySelector('main article')) { return; }
-    var wanted = FEED_VARIANTS.indexOf(config.feed) >= 0 ? config.feed : 'following';
-    if (headerShowsFeed(wanted)) {
+    if (hasFeedVariant()) {
       recoveryStarted = 0;
       return;
     }
@@ -267,7 +250,7 @@
       setTimeout(schedule, 1500);
       return;
     }
-    if (!recoveryStarted || Date.now() - recoveryStarted > 1500) {
+    if (!link || Date.now() - recoveryStarted > 1500) {
       location.replace(homePath());
       return;
     }
@@ -359,7 +342,7 @@
     if (!document.body) { return; }
     try {
       rewriteHomeLinks();
-      enforceFeedHeader();
+      enforceFeedVariant();
       injectSettingsButton();
       if (enabled('ads') || enabled('suggested') || enabled('reels')) { scanFeedLabels(); }
       if (enabled('reels')) { scanReelsRail(); }
