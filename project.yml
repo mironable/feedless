@@ -52,6 +52,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mironable.feedless.tests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   Feedless:
     build:

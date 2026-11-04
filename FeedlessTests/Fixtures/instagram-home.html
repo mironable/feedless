@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Instagram</title></head>
+<body>
+<div id="mount">
+  <header>
+    <div role="button" tabindex="0">
+      <a href="/"><span>Instagram</span></a>
+      <svg aria-label="Down chevron icon" role="img" viewBox="0 0 24 24" width="12" height="12"><path d="M12 17.502a1 1 0 0 1-.707-.293l-9-9.004a1 1 0 0 1 1.414-1.414L12 15.087l8.293-8.296a1 1 0 0 1 1.414 1.414l-9 9.004a1 1 0 0 1-.707.293Z"></path></svg>
+    </div>
+    <div role="menu" id="feed-menu">
+      <a href="/?variant=following" role="menuitem">Following</a>
+      <a href="/?variant=favorites" role="menuitem">Favorites</a>
+    </div>
+    <a href="/direct/inbox/"><svg aria-label="Direct" role="img"></svg></a>
+  </header>
+  <main role="main">
+    <section>
+      <div id="stories">
+        <ul>
+          <li><a href="/stories/alice/1/"><span>alice</span></a></li>
+          <li><a href="/stories/bob/2/"><span>bob</span></a></li>
+          <li><a href="/stories/carol/3/"><span>carol</span></a></li>
+        </ul>
+      </div>
+      <div id="feed">
+        <article id="post-1">
+          <header><a href="/alice/">alice</a></header>
+          <div><img alt="photo"></div>
+        </article>
+        <article id="sponsored">
+          <header><a href="/brand/">brand</a><span>Sponsored</span></header>
+          <div><img alt="ad"></div>
+        </article>
+        <div id="reels-rail">
+          <div><a href="/reels/"><span>Reels</span></a></div>
+          <div><a href="/reel/AAA/">1</a><a href="/reel/BBB/">2</a></div>
+        </div>
+        <div id="suggested-accounts">
+          <div><span>Suggested for you</span><a href="/explore/people/">See all</a></div>
+          <div><a href="/dave/">dave</a><a href="/erin/">erin</a></div>
+        </div>
+        <article id="post-2">
+          <header><a href="/bob/">bob</a></header>
+          <div><img alt="photo"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+  <nav role="navigation">
+    <a id="nav-home" href="/"><svg aria-label="Home" role="img"></svg></a>
+    <a id="nav-explore" href="/explore/"><svg aria-label="Search and explore" role="img"></svg></a>
+    <a id="nav-reels" href="/reels/"><svg aria-label="Reels" role="img"></svg></a>
+    <a id="nav-direct" href="/direct/inbox/"><svg aria-label="Messenger" role="img"></svg></a>
+    <a id="nav-profile" href="/me/"><span>Profile</span></a>
+  </nav>
+</div>
+</body>
+</html>
