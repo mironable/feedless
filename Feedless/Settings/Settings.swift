@@ -15,6 +15,10 @@ final class Settings: ObservableObject {
         didSet { defaults.set(enabledCategories, forKey: Keys.categories) }
     }
 
+    @Published var showTouches: Bool {
+        didSet { defaults.set(showTouches, forKey: Keys.showTouches) }
+    }
+
     init(rules: PlatformRules, defaults: UserDefaults = .standard) {
         self.rules = rules
         self.defaults = defaults
@@ -22,6 +26,7 @@ final class Settings: ObservableObject {
         feedID = rules.feeds.contains { $0.id == storedFeed } ? storedFeed : rules.defaultFeed.id
         let stored = defaults.dictionary(forKey: Keys.categories) as? [String: Bool] ?? [:]
         enabledCategories = Dictionary(uniqueKeysWithValues: rules.categories.map { ($0.id, stored[$0.id] ?? true) })
+        showTouches = defaults.bool(forKey: Keys.showTouches)
     }
 
     func isEnabled(_ categoryID: String) -> Bool {
@@ -39,5 +44,6 @@ final class Settings: ObservableObject {
     private enum Keys {
         static let feed = "feed"
         static let categories = "categories"
+        static let showTouches = "showTouches"
     }
 }

@@ -29,6 +29,10 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
+                Section("Debug") {
+                    Toggle("Show touches", isOn: $settings.showTouches)
+                }
+
                 Section {
                     Button("Reset session", role: .destructive) { confirmReset = true }
                 } footer: {
