@@ -49,6 +49,26 @@
     net.push(entry);
   }
 
+  // The DM badge comes from a GraphQL query the page repeats on its own. Keeping the last
+  // one lets the native side replay it in the background with the same tokens.
+  function isBadgeRequest(entry) {
+    if (entry.url.indexOf('/api/graphql') < 0) { return false; }
+    var name = (entry.headers && (entry.headers['X-FB-Friendly-Name'] || entry.headers['x-fb-friendly-name'])) || '';
+    return /BadgeCount/i.test(name) || /fb_api_req_friendly_name=[^&]*BadgeCount/i.test(entry.body || '');
+  }
+
+  function keepBadgeRequest(entry, responseText) {
+    if (!isBadgeRequest(entry)) { return; }
+    entry.response = responseText ? String(responseText).slice(0, 4000) : null;
+    window.__feedlessBadgeRequest = {
+      t: entry.t,
+      url: entry.url,
+      headers: entry.headers,
+      body: entry.body,
+      response: entry.response
+    };
+  }
+
   window.addEventListener('error', function (event) {
     record({ t: Date.now(), kind: 'error', message: String(event.message), source: String(event.filename) + ':' + event.lineno });
   });
@@ -72,6 +92,9 @@
       record(entry);
       return originalFetch.apply(this, arguments).then(function (response) {
         entry.status = response.status;
+        if (isBadgeRequest(entry)) {
+          response.clone().text().then(function (text) { keepBadgeRequest(entry, text); }, function () {});
+        }
         return response;
       }, function (error) {
         entry.status = 'error';
@@ -97,7 +120,10 @@
       if (entry) {
         entry.body = bodyToString(body);
         record(entry);
-        this.addEventListener('loadend', function () { entry.status = this.status; });
+        this.addEventListener('loadend', function () {
+          entry.status = this.status;
+          try { keepBadgeRequest(entry, this.responseType === '' || this.responseType === 'text' ? this.responseText : null); } catch (error) { /* ignore */ }
+        });
       }
       return send.apply(this, arguments);
     };

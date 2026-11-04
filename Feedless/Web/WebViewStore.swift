@@ -45,6 +45,7 @@ final class WebViewStore: ObservableObject {
 
         Task { await compileContentRules() }
         InboxPoller.shared.claimProvider = { [weak self] in await self?.wwwClaim() }
+        InboxPoller.shared.captureProvider = { [weak self] in await self?.badgeRequest() }
     }
 
     private func compileContentRules() async {
@@ -112,6 +113,12 @@ final class WebViewStore: ObservableObject {
     /// Instagram's client keeps a per-session claim token in sessionStorage and sends it on API calls.
     func wwwClaim() async -> String? {
         try? await webView.evaluateJavaScript("sessionStorage.getItem('www-claim-v2')") as? String
+    }
+
+    /// The latest unread-badge request the page made, kept by instagram.js.
+    func badgeRequest() async -> InboxPoller.CapturedRequest? {
+        guard let json = try? await webView.evaluateJavaScript("JSON.stringify(window.__feedlessBadgeRequest || null)") as? String else { return nil }
+        return try? JSONDecoder().decode(InboxPoller.CapturedRequest.self, from: Data(json.utf8))
     }
 
     func resetSession() async {

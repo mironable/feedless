@@ -3,39 +3,43 @@ import WebKit
 import UserNotifications
 import OSLog
 
-/// Polls Instagram's inbox with the web view's cookies and raises local notifications for new DMs.
-/// Instagram cannot push to a WKWebView, so this is the only route; expect minutes of latency.
+/// Replays Instagram's own unread-badge GraphQL request with the web view's cookies and raises
+/// a local notification when the count grows. Instagram cannot push to a WKWebView and its
+/// inbox now streams over Messenger's MQTT channel, so the badge is what is reachable.
 @MainActor
 final class InboxPoller {
     static let shared = InboxPoller()
 
+    struct CapturedRequest: Codable {
+        var t: Double
+        var url: String
+        var headers: [String: String]
+        var body: String?
+        var response: String?
+    }
+
     enum PollError: LocalizedError {
-        case notEnabled
+        case noCapturedRequest
         case notLoggedIn
-        case http([String])
+        case http(Int, String)
 
         var errorDescription: String? {
             switch self {
-            case .notEnabled: return "Message alerts are off"
+            case .noCapturedRequest: return "No badge request captured yet. Open the feed once with alerts on."
             case .notLoggedIn: return "No Instagram session cookie"
-            case .http(let attempts): return attempts.joined(separator: "; ")
+            case .http(let status, let snippet): return "HTTP \(status): \(snippet)"
             }
         }
     }
 
-    /// Known inbox endpoints, tried in order until one answers 200. The web client has moved
-    /// between these hosts over the years.
-    private static let candidates: [(label: String, url: URL)] = [
-        ("www", URL(string: "https://www.instagram.com/api/v1/direct_v2/inbox/?persistentBadging=true&folder=&limit=20&thread_message_limit=10")!),
-        ("i", URL(string: "https://i.instagram.com/api/v1/direct_v2/inbox/?persistentBadging=true&folder=&limit=20&thread_message_limit=10")!),
-    ]
-    private static let webAppID = "936619743392459"
-    private static let asbdID = "129477"
+    private static let origin = URL(string: "https://www.instagram.com")!
+    private let log = Logger(subsystem: "com.mironable.feedless", category: "inbox")
+    private let defaults = UserDefaults.standard
 
     /// Supplied by the web view: Instagram's per-session claim header, kept in sessionStorage.
     var claimProvider: (() async -> String?)?
-    private let log = Logger(subsystem: "com.mironable.feedless", category: "inbox")
-    private let defaults = UserDefaults.standard
+    /// Supplied by the web view: the latest badge request the page made.
+    var captureProvider: (() async -> CapturedRequest?)?
 
     var isEnabled: Bool { defaults.bool(forKey: Keys.enabled) }
 
@@ -44,26 +48,38 @@ final class InboxPoller {
         set { defaults.set(newValue, forKey: Keys.summary) }
     }
 
-    private var baseline: Int64 {
-        get { Int64(defaults.integer(forKey: Keys.baseline)) }
-        set { defaults.set(Int(newValue), forKey: Keys.baseline) }
+    private var captured: CapturedRequest? {
+        get { defaults.data(forKey: Keys.captured).flatMap { try? JSONDecoder().decode(CapturedRequest.self, from: $0) } }
+        set { defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: Keys.captured) }
     }
 
-    /// Fetch once. With `notify` false the baseline moves without alerts, used when the app
+    private var lastBadge: Int {
+        get { defaults.integer(forKey: Keys.lastBadge) }
+        set { defaults.set(newValue, forKey: Keys.lastBadge) }
+    }
+
+    /// Pulls the page's latest badge request into storage. Call while the web view is alive.
+    func refreshCapture() async {
+        if let fresh = await captureProvider?(), fresh.t > (captured?.t ?? 0) {
+            captured = fresh
+        }
+    }
+
+    /// Fetch once. With `notify` false the count is recorded without alerts, used when the app
     /// goes to the background so messages already read in the app are not announced later.
     @discardableResult
-    func poll(notify: Bool) async -> Result<InboxSnapshot, Error> {
+    func poll(notify: Bool) async -> Result<Int, Error> {
+        await refreshCapture()
         do {
-            let snapshot = try await fetchInbox()
-            let fresh = InboxParser.newMessages(in: snapshot, after: baseline)
-            if notify, baseline > 0 {
-                for message in fresh { await post(message) }
+            let count = try await fetchBadge()
+            if notify, count > lastBadge, count > 0 {
+                await post(count: count)
             }
-            baseline = max(baseline, snapshot.newestTimestamp)
-            try? await UNUserNotificationCenter.current().setBadgeCount(snapshot.unseenCount)
-            lastSummary = "\(Self.timeFormatter.string(from: .now)): \(snapshot.unseenCount) unseen, \(fresh.count) new" + (notify ? "" : " (silent)")
-            log.info("poll ok unseen=\(snapshot.unseenCount) new=\(fresh.count)")
-            return .success(snapshot)
+            lastBadge = count
+            try? await UNUserNotificationCenter.current().setBadgeCount(count)
+            lastSummary = "\(Self.timeFormatter.string(from: .now)): \(count) unread" + (notify ? "" : " (silent)")
+            log.info("poll ok unread=\(count)")
+            return .success(count)
         } catch {
             lastSummary = "\(Self.timeFormatter.string(from: .now)): \(error.localizedDescription)"
             log.error("poll failed: \(error.localizedDescription, privacy: .public)")
@@ -75,51 +91,51 @@ final class InboxPoller {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    private func fetchInbox() async throws -> InboxSnapshot {
+    private func fetchBadge() async throws -> Int {
+        guard let captured else { throw PollError.noCapturedRequest }
         let cookies = await WKWebsiteDataStore.default().httpCookieStore.allCookies()
             .filter { $0.domain.hasSuffix("instagram.com") }
         guard cookies.contains(where: { $0.name == "sessionid" && !$0.value.isEmpty }) else { throw PollError.notLoggedIn }
-        let csrf = cookies.first { $0.name == "csrftoken" }?.value ?? ""
-        let claim = await claimProvider?() ?? "0"
 
-        var attempts: [String] = []
-        let preferred = defaults.integer(forKey: Keys.endpoint)
-        let order = Array(Self.candidates.indices).sorted { ($0 == preferred ? 0 : 1, $0) < ($1 == preferred ? 0 : 1, $1) }
-        for index in order {
-            let candidate = Self.candidates[index]
-            var request = URLRequest(url: candidate.url, timeoutInterval: 20)
-            request.httpShouldHandleCookies = false
-            request.setValue(cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; "), forHTTPHeaderField: "Cookie")
-            request.setValue(WebViewStore.userAgent, forHTTPHeaderField: "User-Agent")
-            request.setValue(Self.webAppID, forHTTPHeaderField: "X-IG-App-ID")
-            request.setValue(Self.asbdID, forHTTPHeaderField: "X-ASBD-ID")
-            request.setValue(claim, forHTTPHeaderField: "X-IG-WWW-Claim")
-            request.setValue(csrf, forHTTPHeaderField: "X-CSRFToken")
-            request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
-            request.setValue("https://www.instagram.com/direct/inbox/", forHTTPHeaderField: "Referer")
-            request.setValue("*/*", forHTTPHeaderField: "Accept")
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            if status == 200 {
-                defaults.set(index, forKey: Keys.endpoint)
-                return try InboxParser.parse(data)
-            }
-            let snippet = String(decoding: data.prefix(80), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
-            attempts.append("\(candidate.label) HTTP \(status) \(snippet)")
+        let url = URL(string: captured.url, relativeTo: Self.origin)!.absoluteURL
+        var request = URLRequest(url: url, timeoutInterval: 20)
+        request.httpMethod = "POST"
+        request.httpShouldHandleCookies = false
+        for (key, value) in captured.headers where !["cookie", "content-length", "host"].contains(key.lowercased()) {
+            request.setValue(value, forHTTPHeaderField: key)
         }
-        throw PollError.http(attempts)
+        request.setValue(cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; "), forHTTPHeaderField: "Cookie")
+        request.setValue(WebViewStore.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("https://www.instagram.com/", forHTTPHeaderField: "Referer")
+        request.setValue("https://www.instagram.com", forHTTPHeaderField: "Origin")
+        if let csrf = cookies.first(where: { $0.name == "csrftoken" })?.value {
+            request.setValue(csrf, forHTTPHeaderField: "X-CSRFToken")
+        }
+        if let claim = await claimProvider?() {
+            request.setValue(claim, forHTTPHeaderField: "X-IG-WWW-Claim")
+        }
+        request.httpBody = captured.body.map { Data($0.utf8) }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            throw PollError.http(status, String(decoding: data.prefix(200), as: UTF8.self).replacingOccurrences(of: "\n", with: " "))
+        }
+        do {
+            return try BadgeParser.unreadCount(in: data)
+        } catch {
+            throw PollError.http(status, "no count in " + String(decoding: data.prefix(200), as: UTF8.self))
+        }
     }
 
-    private func post(_ message: InboxMessage) async {
+    private func post(count: Int) async {
         let content = UNMutableNotificationContent()
-        content.title = message.threadTitle
-        content.subtitle = message.senderName == message.threadTitle ? "" : message.senderName
-        content.body = message.body
+        content.title = "Instagram"
+        content.body = count == 1 ? "You have 1 unread message" : "You have \(count) unread messages"
         content.sound = .default
-        content.threadIdentifier = message.threadID
-        content.userInfo = ["threadID": message.threadID]
-        let request = UNNotificationRequest(identifier: "dm-\(message.threadID)-\(message.timestamp)", content: content, trigger: nil)
+        content.threadIdentifier = "inbox"
+        content.userInfo = ["url": "https://www.instagram.com/direct/inbox/"]
+        let request = UNNotificationRequest(identifier: "inbox-\(Int(Date.now.timeIntervalSince1970))", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
     }
 
@@ -132,7 +148,7 @@ final class InboxPoller {
     private enum Keys {
         static let enabled = "dmNotifications"
         static let summary = "inboxLastSummary"
-        static let baseline = "inboxBaseline"
-        static let endpoint = "inboxEndpoint"
+        static let captured = "inboxBadgeRequest"
+        static let lastBadge = "inboxLastBadge"
     }
 }

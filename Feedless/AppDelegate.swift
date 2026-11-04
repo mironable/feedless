@@ -21,8 +21,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
 
     /// A tapped DM alert opens its thread in the web view.
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let threadID = response.notification.request.content.userInfo["threadID"] as? String,
-              let url = URL(string: "https://www.instagram.com/direct/t/\(threadID)/") else { return }
+        guard let string = response.notification.request.content.userInfo["url"] as? String,
+              let url = URL(string: string) else { return }
         NotificationCenter.default.post(name: Self.openURLNotification, object: url)
     }
 

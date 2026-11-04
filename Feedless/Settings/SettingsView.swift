@@ -70,7 +70,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Notifications")
                 } footer: {
-                    Text("Instagram cannot push to Feedless. The app checks your inbox in the background a few times an hour, when iOS allows it, and alerts you to new direct messages. Last check: \(pollSummary)")
+                    Text("Instagram cannot push to Feedless. The app re-checks Instagram's unread-message count in the background a few times an hour, when iOS allows it, and alerts you when it grows. Last check: \(pollSummary)")
                 }
 
                 Section("Debug") {
